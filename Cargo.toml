@@ -1,0 +1,8 @@
+[package]
+authors = ["Alexander Popiak <alexander.popiak@nexenio.com>"]
+name = "berlinerbaeder"
+version = "0.1.0"
+[dependencies]
+error-chain = "*"
+reqwest = "*"
+select = "*"
