@@ -7,7 +7,9 @@ use reqwest::Client;
 use reqwest::Url;
 
 use select::document::Document;
+use select::node::{Children, Node};
 use select::predicate::*;
+use select::selection::Selection;
 
 error_chain! {
    foreign_links {
@@ -33,13 +35,52 @@ fn run() -> Result<()> {
         .collect();
 
     let current_day = "Sonntag";
-    baeder_urls.into_iter().for_each(|url| {
-        client.get(url).send().map_err(|e| {println!("{:?}", e); e}).map(|res| {
-            Document::from_read(res).map_err(|e| {println!("{:?}", e); e}).map(|d| {
-                d.find(Class("day")).filter(|n| n.into_selection()).for_each(|x| println!("{:?}", x))
-            }).ok();
-        }).ok();
-
+    baeder_urls.into_iter().take(1).for_each(|url| {
+        client
+            .get(url)
+            .send()
+            .map_err(move |e| {
+                println!("{:?}", e);
+                e
+            })
+            .map(move |res| {
+                Document::from_read(res)
+                    .map_err(move |e| {
+                        println!("{:?}", e);
+                        e
+                    })
+                    .map(move |d| {
+                        d.find(Class("day").and(|n: &Node| n.text().contains(current_day)))
+                            .for_each(|n| {
+                                n.find(Class("opentime")).for_each(|time_node| {
+                                    time_node.children().for_each(|time| {
+                                        let open_text = time
+                                            .children()
+                                            .filter(|child| {
+                                                child.is(|c: &Node| {
+                                                    c.attr("data-lng")
+                                                        .unwrap_or("")
+                                                        .matches("en")
+                                                        .count()
+                                                        == 0
+                                                })
+                                            })
+                                            .map(|c| c.text().trim().to_owned())
+                                            .filter(|c| !c.is_empty())
+                                            .collect::<Vec<String>>()
+                                            .join(" -> ")
+                                            .trim()
+                                            .to_owned();
+                                        if !open_text.is_empty() {
+                                            println!("{}", open_text);
+                                        }
+                                    })
+                                })
+                            });
+                    })
+                    .ok();
+            })
+            .ok();
     });
 
     Ok(())
